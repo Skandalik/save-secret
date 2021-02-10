@@ -3,26 +3,80 @@ require('./sourcemap-register.js');module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 932:
-/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const core = __webpack_require__(186);
-const wait = __webpack_require__(258);
+const core = __nccwpck_require__(186);
+const github = __nccwpck_require__(716);
+const sodium = __nccwpck_require__(873);
 
-
-// most @actions toolkit packages have async methods
+// Base on actions/javascript-action template.
 async function run() {
   try {
-    const ms = core.getInput('milliseconds');
-    core.info(`Waiting ${ms} milliseconds ...`);
+    // Get tokens from arguments of an action
+    const githubToken = core.getInput('github_token', {required: true});
+    const owner = core.getInput('owner', {required: true});
+    const repository = core.getInput('repository', {required: true});
+    const secretName = core.getInput('secret_name', {required: true});
+    const secretValue = core.getInput('secret_value', {required: true});
 
-    core.debug((new Date()).toTimeString()); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-    await wait(parseInt(ms));
-    core.info((new Date()).toTimeString());
+    core.info(`> owner: ${owner}`);
+    core.info(`> repository: ${repository}`);
+    core.info(`> secret_name: ${secretName}`);
 
-    core.setOutput('time', new Date().toTimeString());
+    // Setup octokit
+    const octokit = github.getOctokit(githubToken)
+
+    const {key, keyId} = await repositoryData(octokit, owner, repository)
+    const encrypted = encrypt(key, secretValue)
+    await handleSecret(octokit, secretName, encrypted, owner, repository, keyId)
   } catch (error) {
     core.setFailed(error.message);
   }
+}
+
+async function repositoryData(octokit, owner, repository) {
+  core.info("Requesting repository public key")
+  const time = Date.now();
+  const {status, headers, data} = await octokit.request('GET /repos/{owner}/{repo}/actions/secrets/public-key', {
+    owner: owner,
+    repo: repository,
+  })
+
+  core.info(`< ${status} ${Date.now() - time}ms`);
+  return {
+    key: data.key,
+    keyId: data.key_id
+  }
+}
+
+function encrypt(secret, value) {
+  core.info("Encrypting passed value")
+  // Convert the message and key to Uint8Array's (Buffer implements that interface)
+  const messageBytes = Buffer.from(value);
+  const keyBytes = Buffer.from(secret, 'base64');
+
+  // Encrypt using LibSodium.
+  const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+
+  // Base64 the encrypted secret
+  return Buffer.from(encryptedBytes).toString('base64');
+}
+
+async function handleSecret(octokit, secretName, encrypted, owner, repository, keyId) {
+  core.info("Creating repo secret")
+  const time = Date.now();
+  const {status, headers, data} = await octokit.actions.createOrUpdateRepoSecret({
+    owner: owner,
+    repo: repository,
+    secret_name: secretName,
+    encrypted_value: encrypted,
+    key_id: keyId
+  })
+  core.info(`< ${status} ${Date.now() - time}ms`);
+
+  core.setOutput("status", status);
+  core.setOutput("headers", JSON.stringify(headers, null, 2));
+  core.setOutput("data", JSON.stringify(data, null, 2));
 }
 
 run();
@@ -31,7 +85,7 @@ run();
 /***/ }),
 
 /***/ 351:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -43,8 +97,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const os = __importStar(__webpack_require__(87));
-const utils_1 = __webpack_require__(278);
+const os = __importStar(__nccwpck_require__(87));
+const utils_1 = __nccwpck_require__(278);
 /**
  * Commands
  *
@@ -117,7 +171,7 @@ function escapeProperty(s) {
 /***/ }),
 
 /***/ 186:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -138,11 +192,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const command_1 = __webpack_require__(351);
-const file_command_1 = __webpack_require__(717);
-const utils_1 = __webpack_require__(278);
-const os = __importStar(__webpack_require__(87));
-const path = __importStar(__webpack_require__(622));
+const command_1 = __nccwpck_require__(351);
+const file_command_1 = __nccwpck_require__(717);
+const utils_1 = __nccwpck_require__(278);
+const os = __importStar(__nccwpck_require__(87));
+const path = __importStar(__nccwpck_require__(622));
 /**
  * The code to exit an action
  */
@@ -362,7 +416,7 @@ exports.getState = getState;
 /***/ }),
 
 /***/ 717:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -377,9 +431,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const fs = __importStar(__webpack_require__(747));
-const os = __importStar(__webpack_require__(87));
-const utils_1 = __webpack_require__(278);
+const fs = __importStar(__nccwpck_require__(747));
+const os = __importStar(__nccwpck_require__(87));
+const utils_1 = __nccwpck_require__(278);
 function issueCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
@@ -423,19 +477,18 @@ exports.toCommandValue = toCommandValue;
 
 /***/ }),
 
-/***/ 258:
+/***/ 716:
 /***/ ((module) => {
 
-let wait = function (milliseconds) {
-  return new Promise((resolve) => {
-    if (typeof milliseconds !== 'number') {
-      throw new Error('milliseconds not a number');
-    }
-    setTimeout(() => resolve("done!"), milliseconds)
-  });
-};
+module.exports = eval("require")("@actions/github");
 
-module.exports = wait;
+
+/***/ }),
+
+/***/ 873:
+/***/ ((module) => {
+
+module.exports = eval("require")("tweetsodium");
 
 
 /***/ }),
@@ -470,7 +523,7 @@ module.exports = require("path");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __webpack_require__(moduleId) {
+/******/ 	function __nccwpck_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -485,7 +538,7 @@ module.exports = require("path");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __nccwpck_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -498,11 +551,11 @@ module.exports = require("path");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(932);
+/******/ 	return __nccwpck_require__(932);
 /******/ })()
 ;
 //# sourceMappingURL=index.js.map
