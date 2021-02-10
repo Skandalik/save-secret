@@ -1,13 +1,27 @@
-name: 'Wait'
-description: 'Wait a designated number of milliseconds'
+name: save-secret
+description: Takes secret value and saves it in the repository secrets.
+branding:
+  icon: git-commit
+  color: green
 inputs:
-  milliseconds:  # id of input
-    description: 'number of milliseconds to wait'
+  github_token:
+    description: GitHub token used for creating/updating secret. Must have write admin rights.
     required: true
-    default: '1000'
-outputs:
-  time: # output will be available to future steps
-    description: 'The message to output'
+    default: ${{ github.token }}
+  owner:
+    description: Owner of the repository.
+    required: true
+    default: ${{ github.repository_owner }}
+  repository:
+    description: Repository name.
+    required: true
+    default: ${{ github.event.repository.name }}
+  secret_name:
+    description: Name of the secret to be kept in the repository secrets.
+    required: true
+  secret_value:
+    description: Value to be saved as a secret.
+    required: true
 runs:
   using: 'node12'
   main: 'dist/index.js'
