@@ -9,7 +9,7 @@ It was created for ability to be used with private ECR images.
 ```yaml
 uses: Skandalik/save-secret@v1.0.0
 with:
-  # Your own repository or organisation-wide GitHub token that has administrator write permissions 
+  # Your own repository or organisation-wide GitHub token that has repo permissions 
   github_token: ${{ secrets.GITHUB_TOKEN }}
   secret_name: YOUR_SECRET_NAME
   secret_value: "value to be encoded"
