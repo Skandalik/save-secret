@@ -8,14 +8,10 @@ inputs:
     description: GitHub token used for creating/updating secret. Must have write admin rights.
     required: true
     default: ${{ github.token }}
-  owner:
-    description: Owner of the repository.
-    required: true
-    default: ${{ github.repository_owner }}
   repository:
-    description: Repository name.
+    description: Repository name with owner e.g "octocat/hello-world".
     required: true
-    default: ${{ github.event.repository.name }}
+    default: ${{ github.repository }}
   secret_name:
     description: Name of the secret to be kept in the repository secrets.
     required: true

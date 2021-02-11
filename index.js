@@ -7,10 +7,12 @@ async function run() {
   try {
     // Get tokens from arguments of an action
     const githubToken = core.getInput('github_token', {required: true});
-    const owner = core.getInput('owner', {required: true});
-    const repository = core.getInput('repository', {required: true});
+    const ownerWithRepo = core.getInput('repository', {required: true});
     const secretName = core.getInput('secret_name', {required: true});
     const secretValue = core.getInput('secret_value', {required: true});
+
+    // TODO: dirty but currently it's not possible to fetch repository name from event when using scheduled action.
+    const [owner, repository] = ownerWithRepo.split("/");
 
     core.info(`> owner: ${owner}`);
     core.info(`> repository: ${repository}`);
